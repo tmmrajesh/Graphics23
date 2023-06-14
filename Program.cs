@@ -24,8 +24,63 @@ class MyWindow : Window {
       mStride = mBmp.BackBufferStride;
       image.Source = mBmp;
       Content = image;
+      //DrawMandelbrot (-0.5, 0, 1);
+      DrawRect (50, 60, 300, 200);
+      DrawRect (500, 500, 450, 150);
+      DrawRect (200, 350, 50, 550);
+   }
 
-      DrawMandelbrot (-0.5, 0, 1);
+   void DrawRect (int xs, int ys, int xe, int ye, bool diag = true) {
+      DrawLine (xs, ys, xs, ye);
+      DrawLine (xs, ye, xe, ye);
+      DrawLine (xe, ye, xe, ys);
+      DrawLine (xe, ys, xs, ys);
+      if (diag) {
+         DrawLine (xs, ys, xe, ye);
+         DrawLine (xs, ye, xe, ys);
+      }
+   }
+
+   void DrawLine (int x0, int y0, int x1, int y1) {
+      var (dx, dy) = (x1 - x0, y1 - y0);
+      // Prepare the co-ordinates for the normalized drawing where
+      // we always draw along the increasing x 
+      bool swapXY = Math.Abs (dy) > Math.Abs (dx);
+      if (swapXY) (x0, y0, x1, y1, dx, dy) = (y0, x0, y1, x1, dy, dx);
+      if (dx < 0) (x0, y0, x1, y1, dx, dy) = (x1, y1, x0, y0, -dx, -dy);
+      try {
+         mBmp.Lock ();
+         mBase = mBmp.BackBuffer;
+
+         //// Floating point arithmatic.
+         //var slope = (double)(y1 - y0) / (x1 - x0);
+         //for (int x = x0, y = y0; x < x1; x++) {
+         //   Set (x, y);
+         //   y = y0 + (int)(slope * (x - x0));
+         //}
+
+         // Integer arithmatic
+         int yi = 1;
+         if (dy < 0) (yi, dy) = (-1, -dy);
+         var d = (2 * dy) - dx;
+
+         for (int x = x0, y = y0; x <= x1; x++) {
+            Draw (x, y);
+            if (d > 0) {
+               y += yi;
+               d -= 2 * dx;
+            }
+            d += 2 * dy;
+         }
+      } finally {
+         mBmp.AddDirtyRect (new Int32Rect (0, 0, (int)Width, (int)Height));
+         mBmp.Unlock ();
+      }
+
+      void Draw (int x, int y) { 
+         if (swapXY) SetPixel (y, x, 255);
+         else SetPixel (x, y, 255); 
+      }
    }
 
    void DrawMandelbrot (double xc, double yc, double zoom) {
