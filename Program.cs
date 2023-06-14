@@ -73,7 +73,7 @@ class MyWindow : Window {
             d += 2 * dy;
          }
       } finally {
-         mBmp.AddDirtyRect (new Int32Rect (0, 0, (int)Width, (int)Height));
+         mBmp.AddDirtyRect (new Int32Rect (x0, y0, dx + 1, dy + 1));
          mBmp.Unlock ();
       }
 
