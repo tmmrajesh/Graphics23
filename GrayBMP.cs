@@ -77,6 +77,7 @@ class GrayBMP {
    /// <summary>Draws a horizontal line between the given endpoints, with the given shade of gray</summary>
    public void DrawHorizontalLine (int x1, int x2, int y, int gray) {
       Begin ();
+      if (x1 > x2) (x1, x2) = (x2, x1);
       Check (x1, y); Check (x2, y);
       Dirty (x1, y, x2, y);
       byte bGray = (byte)gray;

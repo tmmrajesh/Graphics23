@@ -58,7 +58,7 @@ class PolyFill {
                // Get the edge and the corresponding end points.
                var (x1, y1) = pts[edge]; var (x2, y2) = pts[edge + 1];
                // Test intersection and record the inersection point
-               if (!Geo.Intersects (xLeft, yS, xRight, yS, x1, y1, x2, y2, out var x, out _)) continue;
+               if (!GetXLieAtY (x1, y1, x2, y2, yS, out var x)) continue; 
                xi.Add (x);
             }
             xi.Sort ();
@@ -81,7 +81,7 @@ class PolyFill {
          xi.Clear ();
          for (int i = 0; i < pts.Length; i += 2) {
             var pt1 = pts[i]; var pt2 = pts[i + 1];
-            if (!Geo.Intersects (xLeft, yS, xRight, yS, pt1.x, pt1.y, pt2.x, pt2.y, out var x, out _)) continue;
+            if (!GetXLieAtY (pt1.x, pt1.y, pt2.x, pt2.y, yS, out var x)) continue;
             xi.Add (x);
          }
          xi.Sort ();
@@ -99,64 +99,17 @@ class PolyFill {
       var res = pt1.y.CompareTo (pt2.y); if (res != 0) return res;
       return pt1.x.CompareTo (pt2.x);
    }
-}
 
-/// <summary>This class contains reusable utilities used in this application.</summary>
-public static class Geo {
-   public const double Epsilon = 1E-8;
-
-   /// <summary>Checks if a real number is equal to zero within EPSILON.</summary>
-   public static bool IsZero (this double f) => Math.Abs (f) < Epsilon;
-
-   /// <summary>
-   /// Computes intersection between two lines segements passing through 
-   /// (x1, y1)-(x2, y2) and (x3, y3)-(x4, y4) respectively.
-   /// </summary>
-   /// <returns>True if the segments intersect, false otherwise.</returns>
-   public static bool Intersects (
-      double x1, double y1, double x2, double y2,
-      double x3, double y3, double x4, double y4,
-      out double x, out double y) {
-      x = double.NaN; y = double.NaN;
-      double Ax = x2 - x1, Ay = y2 - y1;
-      double Bx = x3 - x4, By = y3 - y4;
-      double Cx = x1 - x3, Cy = y1 - y3;
-      var alpha = By * Cx - Bx * Cy;
-      var denom = Ay * Bx - Ax * By;
-
-      bool iIntersects = true;
-
-      if (denom.IsZero ()) {
-         iIntersects = false;
-      } else {
-         if (denom > 0) {
-            // lie check on first segment
-            if (alpha < 0 || alpha > denom) {
-               iIntersects = false;
-            }
-         } else if (alpha > 0 || alpha < denom) { // lie check on first segment
-            iIntersects = false;
-         }
-
-         if (iIntersects) {
-            var beta = Ax * Cy - Ay * Cx;
-            if (denom > 0) {
-               // lie check on second segment
-               if (beta < 0 || beta > denom) {
-                  iIntersects = false;
-               }
-            } else if (beta > 0 || beta < denom) { // lie check on second segment
-               iIntersects = false;
-            }
-         }
+   static bool GetXLieAtY (int x1, int y1, int x2, int y2, double y, out double x) {
+      x = double.NaN;
+      if (y1 == y2) return false; // Not expecting any other line parallel to x-axis at 0.5 offest
+      else if ((y1 < y2) && (y < y1 || y > y2)) return false;
+      else if ((y1 > y2) && (y < y2 || y > y1)) return false;
+      x = x1;
+      if (x1 != x2) {
+         double dx = x2 - x1;
+         x += (y - y1) * (dx / (y2 - y1));
       }
-
-      if (iIntersects) {
-         alpha /= denom;
-         x = x1 + alpha * Ax;
-         y = y1 + alpha * Ay;
-      }
-
-      return iIntersects;
+      return true;
    }
 }
