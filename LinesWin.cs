@@ -4,6 +4,8 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Controls;
 using System.Windows.Threading;
+using System.Reflection;
+using System.IO;
 
 namespace GrayBMP;
 
@@ -25,12 +27,24 @@ class LinesWin : Window {
       Content = image;
       mDX = mBmp.Width; mDY = mBmp.Height;
 
+      using var stm = Assembly.GetExecutingAssembly ().GetManifestResourceStream ("GrayBMP.res.leaf-fill.txt");
+      StreamReader reader = new (stm);
+      for (var line = reader.ReadLine (); line != null; line = reader.ReadLine ()) {
+         if (string.IsNullOrEmpty (line.Trim ())) continue;
+         var pt = line.Split (' ').Select (int.Parse).ToArray ();
+         mPollyFill.AddLine (pt[0], pt[1], pt[2], pt[3]);
+      }
+      //NextFrame (null, EventArgs.Empty);
+      //return;
+
       // Start a timer to repaint a new frame every 33 milliseconds
       DispatcherTimer timer = new () {
          Interval = TimeSpan.FromMilliseconds (100), IsEnabled = true,
       };
       timer.Tick += NextFrame;
    }
+   PolyFill mPollyFill = new ();
+
    readonly GrayBMP mBmp;
    readonly int mDX, mDY;
 
@@ -38,11 +52,8 @@ class LinesWin : Window {
       using (new BlockTimer ("Lines")) {
          mBmp.Begin ();
          mBmp.Clear (0);
-         for (int i = 0; i < 100000; i++) {
-            int x0 = R.Next (mDX), y0 = R.Next (mDY),
-                x1 = R.Next (mDX), y1 = R.Next (mDY),
-                color = R.Next (256);
-            mBmp.DrawLine (x0, y0, x1, y1, color);
+         for (int i = 0; i < 10; i++) {
+            mPollyFill.Fill (mBmp, R.Next (155, 255));
          }
          mBmp.End ();
       }

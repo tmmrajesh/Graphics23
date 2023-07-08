@@ -9,4 +9,12 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Remove="res\leaf-fill.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="res\leaf-fill.txt" />
+  </ItemGroup>
+
 </Project>
