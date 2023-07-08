@@ -30,9 +30,8 @@ class PolyFill {
       // The active-edge-list
       List<int> ael = new (64);
       // Process events from event queue.
-      for (int i = 1; i < events.Count; i++) {
-         var e = events[i];
-         // record the event point
+      foreach (var e in events) {
+         // record the event point and update ael
          yEnd = e.Point.Y;
          if (e.Enter) {
             // Add an edge to the active edge list.
