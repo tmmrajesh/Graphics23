@@ -4,7 +4,7 @@ namespace GrayBMP;
 class PolyFill {
    public void AddLine (int x0, int y0, int x1, int y1) {
       Point pt1 = new (x0, y0), pt2 = new (x1, y1);
-      if (pt1 == pt2) return;
+      if (pt1.Y == pt2.Y) return;
       xLeft = Math.Min (xLeft, Math.Min (x0, x1));
       xRight = Math.Max (xRight, Math.Max (x0, x1));
       mLines.Add (new Line (pt1, pt2));
@@ -80,7 +80,7 @@ class PolyFill {
    readonly List<Line> mLines = new ();
 
    // An integer point on Polygon, tuned for the sweepline operations
-   readonly struct Point : IComparable<Point>, IEquatable<Point> {
+   readonly struct Point : IComparable<Point> {
       public Point (int x, int y) => (X, Y) = (x, y);
 
       public readonly int X;
@@ -91,18 +91,9 @@ class PolyFill {
          var res = Y.CompareTo (other.Y); if (res != 0) return res;
          return X.CompareTo (other.X);
       }
-
-      public readonly bool Equals (Point other) => X == other.X && Y == other.Y;
-
-      public readonly override bool Equals ([NotNullWhen (true)] object obj) {
-         if (obj == null) return false; return Equals ((Point)obj);
-      }
-      public readonly override int GetHashCode () => (X, Y).GetHashCode ();
       #endregion
 
-      #region Equality Operators -------------------------------------
-      public static bool operator == (in Point a, in Point b) => a.Equals (b);
-      public static bool operator != (in Point a, Point b) => !a.Equals (b);
+      #region Inequality Operators -----------------------------------
       public static bool operator > (in Point a, in Point b) => a.CompareTo (b) > 0;
       public static bool operator < (in Point a, in Point b) => a.CompareTo (b) < 0;
       #endregion
@@ -125,8 +116,7 @@ class PolyFill {
       // and another line parallel to the X-Axis at a given y.
       public readonly bool GetXLieAtY (double y, out double x) {
          x = double.NaN;
-         if (A.Y == B.Y) return false; // Not expecting any other line parallel to x-axis at 0.5 offest
-         else if (y < A.Y || y > B.Y) return false;
+         if (y < A.Y || y > B.Y) return false;
          x = A.X; if (A.X != B.X) x += (y - A.Y) * mDxDy;
          return true;
       }
