@@ -1,115 +1,147 @@
-﻿namespace GrayBMP;
+﻿using System.Diagnostics.CodeAnalysis;
+
+namespace GrayBMP;
 class PolyFill {
    public void AddLine (int x0, int y0, int x1, int y1) {
-      var pt1 = (x0, y0); var pt2 = (x1, y1);
+      Point pt1 = new (x0, y0), pt2 = new (x1, y1);
       if (pt1 == pt2) return;
-      // Adjust segment ends along the sweep direction (at a lower y and then lower x).
-      if (Compare (pt1, pt2) > 0) (pt1, pt2) = (pt2, pt1);
-      Add (pt1); Add (pt2);
-
-      void Add ((int x, int y) pt) {
-         if (pt.x < xLeft) xLeft = pt.x;
-         if (pt.x > xRight) xRight = pt.x;
-         mPts.Add (pt);
-      }
+      xLeft = Math.Min (xLeft, Math.Min (x0, x1));
+      xRight = Math.Max (xRight, Math.Max (x0, x1));
+      mLines.Add (new Line (pt1, pt2));
    }
 
-   public void Fill (GrayBMP bmp, int color) => Fill (mPts.ToArray (), bmp, color);
+   public void Fill (GrayBMP bmp, int color) => FillFast (bmp, color);
 
    // Fill polygon using sweepline
-   void Fill ((int x, int y)[] pts, GrayBMP bmp, int color) {
+   void FillFast (GrayBMP bmp, int color) {
       // Build event queue by adding enter and exit events for every 'edge'.
-      // We use an array here as we never add any new event during the scan.
-      int[] events = Enumerable.Range (0, pts.Length).ToArray ();
+      // We use an array here as we never add any new event during the scan.     
+      List<Event> events = new (2 * mLines.Count);
+      for (int i = 0; i < mLines.Count; i++) {
+         var L = mLines[i];
+         events.Add (new Event (L.A, i, true));
+         events.Add (new Event (L.B, i, false));
+      }
       // Sort events list to event queue.
-      Array.Sort (events, CompareEvent);
+      events.Sort ();
 
       // Scan range.
-      int yStart = pts[events[0]].y, yEnd = -1;
+      int yStart = events[0].Point.Y, yEnd;
       // The active-edge-list
-      List<int> ael = new ();
-      // The intersection points at a given 'y'.
-      List<double> xi = new ();
+      List<int> ael = new (64);
       // Process events from event queue.
-      for (int i = 1; i < events.Length; i++) {
-         int id = events[i];
+      for (int i = 1; i < events.Count; i++) {
+         var e = events[i];
          // record the event point
-         yEnd = pts[id].y;
-         bool enter = id % 2 == 0; // Enter event?
-         if (enter) {
+         yEnd = e.Point.Y;
+         if (e.Enter) {
             // Add an edge to the active edge list.
-            ael.Add (id);
+            ael.Add (e.Line);
             HandleEvent ();
          } else {
             // Remove the edge from the active list.
             HandleEvent ();
-            ael.Remove (id - 1);
+            ael.Remove (e.Line);
          }
       }
 
       // Move through the scan range and fill region within polygons.
       void HandleEvent () {
          if (ael.Count < 2) return;
-         for (int y = yStart; y < yEnd; y++) {
-            xi.Clear (); // Clear intersection list.
-            // yScan is y shifted by 0.5.
-            double yS = y + 0.5;
-            foreach (var edge in ael) {
-               // Get the edge and the corresponding end points.
-               var (x1, y1) = pts[edge]; var (x2, y2) = pts[edge + 1];
-               // Test intersection and record the inersection point
-               if (!GetXLieAtY (x1, y1, x2, y2, yS, out var x)) continue; 
-               xi.Add (x);
-            }
-            xi.Sort ();
-            for (int i = 0; i < xi.Count; i += 2)
-               bmp.DrawHorizontalLine ((int)xi[i], (int)xi[i + 1], y, color);
-         }
+         Fill (bmp, color, yStart, yEnd, ael);
          yStart = yEnd;
       }
-
-      int CompareEvent (int id1, int id2) => Compare (pts[id1], pts[id2]);
    }
 
    // Fill polygons by checking all intersections (brute-force).
-   void FillSlow ((int x, int y)[] pts, GrayBMP bmp, int color) {
-      List<double> xi = new (); // Intersection points.
-      int yMin = pts.Min (pt => pt.y), yMax = pts.Max (pt => pt.y);
+   void FillSlow (GrayBMP bmp, int color) {
+      int yMin = mLines.Min (pt => pt.A.Y), yMax = mLines.Max (pt => pt.B.Y);
+      Fill (bmp, color, yMin, yMax, Enumerable.Range (0, mLines.Count).ToList ());
+   }
 
-      for (int y = yMin; y <= yMax; y++) {
-         double yS = y + 0.5;
-         xi.Clear ();
-         for (int i = 0; i < pts.Length; i += 2) {
-            var pt1 = pts[i]; var pt2 = pts[i + 1];
-            if (!GetXLieAtY (pt1.x, pt1.y, pt2.x, pt2.y, yS, out var x)) continue;
-            xi.Add (x);
+   void Fill (GrayBMP bmp, int color, int yStart, int yEnd, List<int> lines) {
+      for (int y = yStart; y < yEnd; y++) {
+         mX.Clear (); // Clear intersection list.
+         double yS = y + 0.5; // yScan is y shifted by 0.5.
+         foreach (var id in lines) {
+            // Test intersection and record the inersection point
+            if (!mLines[id].GetXLieAtY (yS, out var x)) continue;
+            mX.Add (x);
          }
-         xi.Sort ();
-         for (int i = 0; i < xi.Count; i += 2)
-            bmp.DrawHorizontalLine ((int)xi[i], (int)xi[i + 1], y, color);         
+         mX.Sort ();
+         for (int i = 0; i < mX.Count; i += 2)
+            bmp.DrawHorizontalLine ((int)mX[i], (int)mX[i + 1], y, color);
       }
    }
+   // The intersection points at a given 'y'.
+   readonly List<double> mX = new (64);
 
    // Max Scan width
    int xLeft = int.MaxValue, xRight = int.MinValue;
-   readonly List<(int x, int y)> mPts = new ();
+   readonly List<Line> mLines = new ();
 
-   // Compares event points along the sweep direction.
-   static int Compare ((int x, int y) pt1, (int x, int y) pt2) {
-      var res = pt1.y.CompareTo (pt2.y); if (res != 0) return res;
-      return pt1.x.CompareTo (pt2.x);
+   // An integer point on Polygon, tuned for the sweepline operations
+   readonly struct Point : IComparable<Point>, IEquatable<Point> {
+      public Point (int x, int y) => (X, Y) = (x, y);
+
+      public readonly int X;
+      public readonly int Y;
+
+      #region Interface methods --------------------------------------
+      public readonly int CompareTo (Point other) {
+         var res = Y.CompareTo (other.Y); if (res != 0) return res;
+         return X.CompareTo (other.X);
+      }
+
+      public readonly bool Equals (Point other) => X == other.X && Y == other.Y;
+
+      public readonly override bool Equals ([NotNullWhen (true)] object obj) {
+         if (obj == null) return false; return Equals ((Point)obj);
+      }
+      public readonly override int GetHashCode () => (X, Y).GetHashCode ();
+      #endregion
+
+      #region Equality Operators -------------------------------------
+      public static bool operator == (in Point a, in Point b) => a.Equals (b);
+      public static bool operator != (in Point a, Point b) => !a.Equals (b);
+      public static bool operator > (in Point a, in Point b) => a.CompareTo (b) > 0;
+      public static bool operator < (in Point a, in Point b) => a.CompareTo (b) < 0;
+      #endregion
    }
 
-   static bool GetXLieAtY (int x1, int y1, int x2, int y2, double y, out double x) {
-      x = double.NaN;
-      if (y1 == y2) return false; // Not expecting any other line parallel to x-axis at 0.5 offest
-      else if ((y1 < y2) && (y < y1 || y > y2)) return false;
-      else if ((y1 > y2) && (y < y2 || y > y1)) return false;
-      x = x1;
-      if (x1 != x2) {
-         double dx = x2 - x1;
-         x += (y - y1) * (dx / (y2 - y1));
+   // A line segment of the Polygon.
+   readonly struct Line {
+      public Line (in Point start, in Point end) {
+         // Adjust segment ends along the sweep direction (at a lower y and then lower x).
+         (A, B) = start > end ? (end, start) : (start, end);
+         mDxDy = B.X - A.X; mDxDy /= (B.Y - A.Y);
       }
-      return true;
+
+      // Start point
+      public readonly Point A;
+      // End point.
+      public readonly Point B;
+
+      // Returns the x coordinate of the intersection point between this line
+      // and another line parallel to the X-Axis at a given y.
+      public readonly bool GetXLieAtY (double y, out double x) {
+         x = double.NaN;
+         if (A.Y == B.Y) return false; // Not expecting any other line parallel to x-axis at 0.5 offest
+         else if (y < A.Y || y > B.Y) return false;
+         x = A.X; if (A.X != B.X) x += (y - A.Y) * mDxDy;
+         return true;
+      }
+      // The cached inverse slope of this line.
+      readonly double mDxDy;
+   }
+
+   // Event points of the sweepline. We only need 'enter' and 'exit' events.
+   readonly struct Event : IComparable<Event> {
+      public Event (in Point pt, int line, bool enter) => (Point, Line, Enter) = (pt, line, enter);
+      public readonly bool Enter;         // Is this an enter event? Otherwise it is an exit event.
+      public readonly Point Point;        // The event point.
+      public readonly int Line;           // Line this event belongs to.
+
+      public readonly int CompareTo (Event other) => Point.CompareTo (other.Point);
    }
 }
