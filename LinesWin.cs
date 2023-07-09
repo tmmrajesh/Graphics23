@@ -31,7 +31,7 @@ class LinesWin : Window {
       StreamReader reader = new (stm);
       for (var line = reader.ReadLine (); line != null; line = reader.ReadLine ()) {
          if (string.IsNullOrEmpty (line.Trim ())) continue;
-         var pt = line.Split (' ').Select (int.Parse).ToArray ();
+         var pt = line.Split ().Select (int.Parse).ToArray ();
          mPollyFill.AddLine (pt[0], pt[1], pt[2], pt[3]);
       }
       //NextFrame (null, EventArgs.Empty);

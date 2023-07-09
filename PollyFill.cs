@@ -5,8 +5,6 @@ class PolyFill {
    public void AddLine (int x0, int y0, int x1, int y1) {
       Point pt1 = new (x0, y0), pt2 = new (x1, y1);
       if (pt1.Y == pt2.Y) return;
-      xLeft = Math.Min (xLeft, Math.Min (x0, x1));
-      xRight = Math.Max (xRight, Math.Max (x0, x1));
       mLines.Add (new Line (pt1, pt2));
    }
 
@@ -19,36 +17,31 @@ class PolyFill {
       List<Event> events = new (2 * mLines.Count);
       for (int i = 0; i < mLines.Count; i++) {
          var L = mLines[i];
-         events.Add (new Event (L.A, i, true));
-         events.Add (new Event (L.B, i, false));
+         events.Add (new Event (L.A.Y, i, true));
+         events.Add (new Event (L.B.Y, i, false));
       }
       // Sort events list to event queue.
       events.Sort ();
 
       // Scan range.
-      int yStart = events[0].Point.Y, yEnd;
+      int yStart = events[0].Y;
       // The active-edge-list
       List<int> ael = new (64);
       // Process events from event queue.
       foreach (var e in events) {
-         // record the event point and update ael
-         yEnd = e.Point.Y;
          if (e.Enter) {
             // Add an edge to the active edge list.
             ael.Add (e.Line);
-            HandleEvent ();
          } else {
+            // Handle the event and update ael.
+            if (yStart != e.Y) {
+               // Move through the scan range and fill region within polygons.
+               Fill (bmp, color, yStart, e.Y, ael);
+               yStart = e.Y;
+            }
             // Remove the edge from the active list.
-            HandleEvent ();
             ael.Remove (e.Line);
          }
-      }
-
-      // Move through the scan range and fill region within polygons.
-      void HandleEvent () {
-         if (ael.Count < 2) return;
-         Fill (bmp, color, yStart, yEnd, ael);
-         yStart = yEnd;
       }
    }
 
@@ -76,7 +69,6 @@ class PolyFill {
    readonly List<double> mX = new (64);
 
    // Max Scan width
-   int xLeft = int.MaxValue, xRight = int.MinValue;
    readonly List<Line> mLines = new ();
 
    // An integer point on Polygon, tuned for the sweepline operations
@@ -126,11 +118,11 @@ class PolyFill {
 
    // Event points of the sweepline. We only need 'enter' and 'exit' events.
    readonly struct Event : IComparable<Event> {
-      public Event (in Point pt, int line, bool enter) => (Point, Line, Enter) = (pt, line, enter);
+      public Event (int y, int line, bool enter) => (Y, Line, Enter) = (y, line, enter);
       public readonly bool Enter;         // Is this an enter event? Otherwise it is an exit event.
-      public readonly Point Point;        // The event point.
+      public readonly int Y;              // The event point.
       public readonly int Line;           // Line this event belongs to.
 
-      public readonly int CompareTo (Event other) => Point.CompareTo (other.Point);
+      public readonly int CompareTo (Event other) => Y.CompareTo (other.Y);
    }
 }
