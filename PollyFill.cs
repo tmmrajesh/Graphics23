@@ -85,7 +85,7 @@ class PolyFill {
    readonly struct Line {
       public Line (in Point start, in Point end) {
          // Adjust segment ends along the sweep direction (at a lower y).
-         (A, B) = start.Y < end.Y ? (end, start) : (start, end);
+         (A, B) = start.Y > end.Y ? (end, start) : (start, end);
          mDxDy = B.X - A.X; mDxDy /= (B.Y - A.Y);
       }
 
