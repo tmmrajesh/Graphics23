@@ -1,15 +1,15 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace GrayBMP;
+﻿namespace GrayBMP;
 class PolyFill {
+   #region Interfaces ------------------------------------------------
    public void AddLine (int x0, int y0, int x1, int y1) {
-      Point pt1 = new (x0, y0), pt2 = new (x1, y1);
-      if (pt1.Y == pt2.Y) return;
-      mLines.Add (new Line (pt1, pt2));
+      if (y0 == y1) return;
+      mLines.Add (new Line (new (x0, y0), new (x1, y1)));
    }
 
    public void Fill (GrayBMP bmp, int color) => FillFast (bmp, color);
+   #endregion
 
+   #region Implementation --------------------------------------------
    // Fill polygon using sweepline
    void FillFast (GrayBMP bmp, int color) {
       // Build event queue by adding enter and exit events for every 'edge'.
@@ -68,34 +68,24 @@ class PolyFill {
    // The intersection points at a given 'y'.
    readonly List<double> mX = new (64);
 
-   // Max Scan width
+   // The polygon segments
    readonly List<Line> mLines = new ();
+   #endregion
 
-   // An integer point on Polygon, tuned for the sweepline operations
-   readonly struct Point : IComparable<Point> {
+   #region Internal Types --------------------------------------------
+   // An integer point on Polygon
+   readonly struct Point {
       public Point (int x, int y) => (X, Y) = (x, y);
 
       public readonly int X;
       public readonly int Y;
-
-      #region Interface methods --------------------------------------
-      public readonly int CompareTo (Point other) {
-         var res = Y.CompareTo (other.Y); if (res != 0) return res;
-         return X.CompareTo (other.X);
-      }
-      #endregion
-
-      #region Inequality Operators -----------------------------------
-      public static bool operator > (in Point a, in Point b) => a.CompareTo (b) > 0;
-      public static bool operator < (in Point a, in Point b) => a.CompareTo (b) < 0;
-      #endregion
    }
 
    // A line segment of the Polygon.
    readonly struct Line {
       public Line (in Point start, in Point end) {
-         // Adjust segment ends along the sweep direction (at a lower y and then lower x).
-         (A, B) = start > end ? (end, start) : (start, end);
+         // Adjust segment ends along the sweep direction (at a lower y).
+         (A, B) = start.Y < end.Y ? (end, start) : (start, end);
          mDxDy = B.X - A.X; mDxDy /= (B.Y - A.Y);
       }
 
@@ -112,6 +102,7 @@ class PolyFill {
          x = A.X; if (A.X != B.X) x += (y - A.Y) * mDxDy;
          return true;
       }
+
       // The cached inverse slope of this line.
       readonly double mDxDy;
    }
@@ -125,4 +116,5 @@ class PolyFill {
 
       public readonly int CompareTo (Event other) => Y.CompareTo (other.Y);
    }
+   #endregion
 }
