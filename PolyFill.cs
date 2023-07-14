@@ -30,9 +30,11 @@ class PolyFill {
       bmp.End ();
    }
 
+   public void Reset () => mLines.Clear ();
+
    readonly record struct NPoint (int X, int Y);
    readonly record struct NLine (NPoint A, NPoint B);
-   List<NLine> mLines = new List<NLine> ();
+   List<NLine> mLines = new ();
 }
 
 class PolyFillFast {

@@ -54,7 +54,7 @@ class PolyFillWin : Window {
 
       foreach (var line in mDwg.Lines) {
          var ((x0, y0), (x1, y1)) = (line.A.Round (), line.B.Round ());
-         mBmp.DrawLine (x0, y0, x1, y1, 0);
+         mBmp.DrawThickLine (x0, y0, x1, y1, mScale / 2, 0);
       }
       mBmp.End ();
    }
@@ -66,6 +66,7 @@ class PolyFillWin : Window {
       using (var sr = new StreamReader (stm)) {
          for (; ; ) {
             string line = sr.ReadLine (); if (line == null) break;
+            if (line.Length == 0 || line[0] == ';') continue;
             double[] w = line.Split ().Select (double.Parse).Select (a => a * mScale).ToArray ();
             Point2 a = new (w[0], w[1]), b = new (w[2], w[3]);
             dwg.AddLine (new Line (a, b));

@@ -126,6 +126,41 @@ class GrayBMP {
       End ();
    }
 
+   public void DrawThickLine (int x1, int y1, int x2, int y2, int width, int gray) {
+      if (width <= 0) {
+         DrawLine (x1, y1, x2, y2, gray);
+         return;
+      }
+      mPF.Reset ();
+      Point2 a = new (x1, y1), b = new (x2, y2);
+      double ang = Atan2 (b.Y - a.Y, b.X - a.X);
+      // The thickened polyline of given line.
+      List<(int X, int Y)> pts = new ();
+      // Draw round cap at the end of the segment.
+      Arc (b, ang + HalfPI, ang - HalfPI);
+      // Round cap at the start of the segment.
+      ang += PI;
+      Arc (a, ang + HalfPI, ang - HalfPI);
+      // Draw fat line.
+      for (int i = 0; i < pts.Count; i++) {
+         var (ax, ay) = pts[i]; var (bx, by) = pts[(i + 1) % pts.Count];
+         //DrawLine (ax, ay, bx, by, gray);
+         mPF.AddLine (ax, ay, bx, by);
+      }
+      mPF.Fill (this, gray);
+
+      void Arc (Point2 pt, double start, double end) {
+         double step = (end - start) / 10, theta = start;
+         for (int i = 0; i <= 10; i++, theta += step)
+            pts.Add (RadialMove (pt, width, theta).Round ());
+      }
+   }
+   PolyFillFast mPF = new ();
+   const double HalfPI = PI / 2;
+
+   static Point2 RadialMove (Point2 a, double d, double theta)
+      => new (a.X + d * Cos (theta), a.Y + d * Sin (theta));
+
    /// <summary>Call End after finishing the update of the bitmap</summary>
    public void End () {
       if (--mcLocks == 0) {
