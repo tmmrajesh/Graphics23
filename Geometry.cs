@@ -18,10 +18,10 @@ readonly record struct Complex (double X, double Y) {
 
 /// <summary>A point in 2D space, with double-precision coordinates (X, Y)</summary>
 readonly record struct Point2 (double X, double Y) {
-   public (int X, int Y) Round () => ((int)(X + 0.5), (int)(Y + 0.5));
+   public readonly (int X, int Y) Round () => ((int)(X + 0.5), (int)(Y + 0.5));
 
-   public double AngleTo (Point2 b) => Math.Atan2 (b.Y - Y, b.X - X);
-   public Point2 RadialMove (double r, double th) => new (X + r * Cos (th), Y + r * Sin (th));
+   public readonly double AngleTo (in Point2 b) => Atan2 (b.Y - Y, b.X - X);
+   public readonly Point2 RadialMove (double r, double th) => new (X + r * Cos (th), Y + r * Sin (th));
 
    public static Vector2 operator - (Point2 a, Point2 b) => new (a.X - b.X, a.Y - b.Y);
    public static Point2 operator + (Point2 p, Vector2 v) => new (p.X + v.X, p.Y + v.Y);
@@ -30,11 +30,11 @@ readonly record struct Point2 (double X, double Y) {
 /// <summary>A Vector2 in 2D space</summary>
 readonly record struct Vector2 (double X, double Y) {
    /// <summary>Length of the vector</summary>
-   public double Length => Sqrt (X * X + Y * Y);
+   public readonly double Length => Sqrt (X * X + Y * Y);
 
-   public double Dot (Vector2 b) => X * b.X + Y * b.Y;
+   public readonly double Dot (in Vector2 b) => X * b.X + Y * b.Y;
 
-   public double ZCross (Vector2 b) => X * b.Y - b.X * Y;
+   public readonly double ZCross (in Vector2 b) => X * b.Y - b.X * Y;
 
    public static Vector2 operator + (Vector2 a, Vector2 b) => new (a.X + b.X, a.Y + b.Y);
    public static Vector2 operator * (Vector2 a, double f) => new (a.X * f, a.Y * f);
@@ -136,15 +136,15 @@ class Drawing {
    public IReadOnlyList<Polygon> Polys => mPolys;
    readonly List<Polygon> mPolys = new ();
 
-   public IReadOnlyList<Point2> ConvexHull { 
+   public IReadOnlyList<Point2> ConvexHull {
       get {
          // Return the hull if it has been computed for all the polygons.
          if (mcHull == mPolys.Count) return mHull;
-         // Incrementaly compute the convex hull for the remaining pollygons.
+         // Incrementaly compute the convex hull for the remaining polygons.
          var pts = mHull.Concat (mPolys.Skip (mcHull).SelectMany (poly => poly.Pts)).ToArray ();
          // The lowest anchor point.
-         Point2 ptA = pts.MinBy (x => x.Y); 
-         pts = pts.Select (p => (Ang: Normalized (ptA.AngleTo (p)), Pt: p)).OrderBy (x => x.Ang).Select (x => x.Pt).ToArray ();
+         Point2 ptA = pts.MinBy (p => p.Y);
+         pts = pts.OrderBy (p => Normalized (ptA.AngleTo (p))).ToArray ();
          mHull.Clear (); mHull.Add (pts[0]); mHull.Add (pts[1]);
 
          for (int i = 2; i < pts.Length; i++) {

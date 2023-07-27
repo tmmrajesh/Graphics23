@@ -26,7 +26,7 @@ class PolyFillWin : Window {
       Content = image;
 
       mDwg = LoadDrawing ();
-      mPolygons = mDwg.Polys.OrderByDescending (x => x.Bound.Y0).ToList ();
+      mPolygons = mDwg.Polys.ToList ();
       mDwg = new (); mDwg.Add (mPolygons.RemoveLast ());
       DispatcherTimer timer = new () {
          Interval = TimeSpan.FromMilliseconds (20), IsEnabled = true,
@@ -116,7 +116,8 @@ class PolyFillWin : Window {
    Drawing mDwg;
 }
 
-static class Extenions {
+static class Extensions {
+   // Returns and removes the last point.
    public static T RemoveLast<T> (this List<T> list) {
       T data = list[^1]; list.RemoveAt (list.Count - 1); return data;
    }
