@@ -26,6 +26,8 @@ class PolyFillWin : Window {
       Content = image;
 
       mDwg = LoadDrawing ();
+      mPolygons = mDwg.Polys.OrderByDescending (x => x.Bound.Y0).ToList ();
+      mDwg = new (); mDwg.Add (mPolygons.RemoveLast ());
       DispatcherTimer timer = new () {
          Interval = TimeSpan.FromMilliseconds (20), IsEnabled = true,
       };
@@ -33,10 +35,13 @@ class PolyFillWin : Window {
    }
    readonly GrayBMP mBmp;
    readonly int mScale = 1;
+   List<Polygon> mPolygons;
 
    void NextFrame (object s, EventArgs e) {
       using (new BlockTimer ("Leaf")) {
          mBmp.Begin ();
+         if (mPolygons.Count > 0)
+            mDwg.Add (mPolygons.RemoveLast ());
          DrawLeaf ();
          // DrawFatLines ();
          mBmp.End ();
@@ -65,8 +70,15 @@ class PolyFillWin : Window {
       foreach (var (a, b) in mDwg.EnumLines (xfm))
          mPF.AddLine (a, b);
       mPF.Fill (mBmp, 255);
+
       foreach (var (a, b) in mDwg.EnumLines (xfm))
          mBmp.DrawLine (a, b, 0);
+
+      var hull = mDwg.ConvexHull.Select (p => p * xfm); var last = hull.Last ();
+      foreach (var pt in hull) {
+         mBmp.DrawLine (last, pt, 0);
+         last = pt;
+      }
 
       mBmp.End ();
       mRotate++;
@@ -102,4 +114,10 @@ class PolyFillWin : Window {
       return dwg;
    }
    Drawing mDwg;
+}
+
+static class Extenions {
+   public static T RemoveLast<T> (this List<T> list) {
+      T data = list[^1]; list.RemoveAt (list.Count - 1); return data;
+   }
 }

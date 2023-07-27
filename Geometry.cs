@@ -113,7 +113,7 @@ class Polygon {
    Bound2 mBound;
 
    public static Polygon operator * (Polygon p, Matrix2 m)
-      => new Polygon (p.Pts.Select (a => a * m));
+      => new (p.Pts.Select (a => a * m));
 
    /// <summary>Enumerate all the 'lines' in this Polygon</summary>
    public IEnumerable<(Point2 A, Point2 B)> EnumLines (Matrix2 xfm) {
@@ -130,14 +130,46 @@ class Polygon {
 class Drawing {
    public void Add (Polygon poly) {
       mPolys.Add (poly);
-      mBound = new (); 
+      mBound = new ();
    }
 
    public IReadOnlyList<Polygon> Polys => mPolys;
-   List<Polygon> mPolys = new ();
+   readonly List<Polygon> mPolys = new ();
+
+   public IReadOnlyList<Point2> ConvexHull { 
+      get {
+         // Return the hull if it has been computed for all the polygons.
+         if (mcHull == mPolys.Count) return mHull;
+         // Incrementaly compute the convex hull for the remaining pollygons.
+         var pts = mHull.Concat (mPolys.Skip (mcHull).SelectMany (poly => poly.Pts)).ToArray ();
+         // The lowest anchor point.
+         Point2 ptA = pts.MinBy (x => x.Y); 
+         pts = pts.Select (p => (Ang: Normalized (ptA.AngleTo (p)), Pt: p)).OrderBy (x => x.Ang).Select (x => x.Pt).ToArray ();
+         mHull.Clear (); mHull.Add (pts[0]); mHull.Add (pts[1]);
+
+         for (int i = 2; i < pts.Length; i++) {
+            Point2 p0 = mHull[^2], p1 = mHull[^1], pt = pts[i];
+            while ((p1 - p0).ZCross (pt - p0) < 0) {
+               mHull.RemoveLast ();
+               p0 = mHull[^2]; p1 = mHull[^1];
+            }
+            mHull.Add (pt);
+         }
+         mcHull = mPolys.Count;
+         return mHull;
+
+         // Returns the angle in 0 to 2*PI range.
+         static double Normalized (double angle) => angle < 0 ? angle + TwoPI : angle;
+      } 
+   }
+   const double TwoPI = PI * 2;
+   // Convex hull.
+   readonly List<Point2> mHull = new ();
+   // Number of polygons for which we have a valid convex hull.
+   int mcHull = 0;
 
    public static Drawing operator * (Drawing d, Matrix2 m) {
-      Drawing d2 = new Drawing ();
+      Drawing d2 = new ();
       foreach (var p in d.Polys) d2.Add (p * m);
       return d2;
    }
@@ -151,7 +183,7 @@ class Drawing {
    Bound2 mBound;
 
    public Bound2 GetBound (Matrix2 xfm) 
-      => new Bound2 (Polys.SelectMany (a => a.Pts.Select (p => p * xfm)));
+      => new (ConvexHull.Select (p => p * xfm));
 
    /// <summary>Enumerate all the lines in this drawing</summary>
    public IEnumerable<(Point2 A, Point2 B)> EnumLines (Matrix2 xfm) 
