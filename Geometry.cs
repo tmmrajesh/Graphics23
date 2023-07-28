@@ -148,12 +148,12 @@ class Drawing {
          mHull.Clear (); mHull.Add (pts[0]); mHull.Add (pts[1]);
 
          for (int i = 2; i < pts.Length; i++) {
-            Point2 p0 = mHull[^2], p1 = mHull[^1], pt = pts[i];
-            while ((p1 - p0).ZCross (pt - p0) < 0) {
+            for (; ; ) {
+               Point2 p0 = mHull[^2], p1 = mHull[^1];
+               if ((p1 - p0).ZCross (pts[i] - p0) >= 0) break;
                mHull.RemoveLast ();
-               p0 = mHull[^2]; p1 = mHull[^1];
             }
-            mHull.Add (pt);
+            mHull.Add (pts[i]);
          }
          mcHull = mPolys.Count;
          return mHull;
