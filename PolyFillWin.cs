@@ -96,6 +96,7 @@ class PolyFillWin : Window {
 
    Drawing LoadDrawing () {
       Drawing dwg = new ();
+      //using (var stm = File.OpenRead ("C:/Etc/leaf3-fill.txt"))
       using (var stm = Assembly.GetExecutingAssembly ().GetManifestResourceStream ("GrayBMP.Data.leaf-poly.txt"))
       using (var sr = new StreamReader (stm)) {
          List<Point2> pts = new ();

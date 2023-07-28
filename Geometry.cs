@@ -23,6 +23,11 @@ readonly record struct Point2 (double X, double Y) {
    public readonly double AngleTo (in Point2 b) => Atan2 (b.Y - Y, b.X - X);
    public readonly Point2 RadialMove (double r, double th) => new (X + r * Cos (th), Y + r * Sin (th));
 
+   public readonly double DistSq (in Point2 b) {
+      double dx = b.X - X, dy = b.Y - Y;
+      return dx * dx + dy * dy;
+   }
+
    public static Vector2 operator - (Point2 a, Point2 b) => new (a.X - b.X, a.Y - b.Y);
    public static Point2 operator + (Point2 p, Vector2 v) => new (p.X + v.X, p.Y + v.Y);
 }
@@ -142,9 +147,16 @@ class Drawing {
          if (mcHull == mPolys.Count) return mHull;
          // Incrementaly compute the convex hull for the remaining polygons.
          var pts = mHull.Concat (mPolys.Skip (mcHull).SelectMany (poly => poly.Pts)).ToArray ();
-         // The lowest anchor point.
-         Point2 ptA = pts.MinBy (p => p.Y);
-         pts = pts.OrderBy (p => Normalized (ptA.AngleTo (p))).ToArray ();
+         // Find the lowest, left-most anchor point.
+         double xMin = double.MaxValue, yMin = double.MaxValue;
+         foreach (var pt in pts) {
+            if (pt.Y > yMin) continue;
+            yMin = pt.Y;
+            if (pt.X < xMin) xMin = pt.X;
+         }
+
+         Point2 ptA = new (xMin, yMin);
+         pts = pts.OrderBy (p => ptA.AngleTo (p) + Epsilon).ThenBy (p => ptA.DistSq (p)).ToArray ();
          mHull.Clear (); mHull.Add (pts[0]); mHull.Add (pts[1]);
 
          for (int i = 2; i < pts.Length; i++) {
@@ -157,12 +169,9 @@ class Drawing {
          }
          mcHull = mPolys.Count;
          return mHull;
-
-         // Returns the angle in 0 to 2*PI range.
-         static double Normalized (double angle) => angle < 0 ? angle + TwoPI : angle;
       } 
    }
-   const double TwoPI = PI * 2;
+   const double Epsilon = 1E-8;
    // Convex hull.
    readonly List<Point2> mHull = new ();
    // Number of polygons for which we have a valid convex hull.
